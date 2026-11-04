@@ -1,0 +1,91 @@
+services:
+  # 1. DATABASE UTAMA: PostgreSQL 16
+  postgres:
+    image: postgres:16-alpine
+    container_name: biblio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      TZ: ${DB_TIMEZONE}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - biblio_pgdata:/var/lib/postgresql/data
+    networks:
+      - biblio-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. OBJECT STORAGE (S3 Lokal): MinIO untuk Sampul & Foto Kondisi Buku
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: biblio-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - biblio_miniodata:/data
+    networks:
+      - biblio-network
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. DISTRIBUTED TRACING: Jaeger All-in-One (Menerima OpenTelemetry dari Go)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: biblio-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${JAEGER_UI_PORT}:16686"
+      - "${JAEGER_OTLP_GRPC_PORT}:4317"
+      - "${JAEGER_OTLP_HTTP_PORT}:4318"
+    networks:
+      - biblio-network
+
+  # 4. VISUALIZATION DASHBOARD: Grafana (Bisa baca data dari Jaeger & Postgres)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: biblio-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    ports:
+      - "${GRAFANA_PORT}:3000" # Diakses via localhost:3001
+    volumes:
+      - biblio_grafanadata:/var/lib/grafana
+    depends_on:
+      - postgres
+      - jaeger
+    networks:
+      - biblio-network
+
+# Brankas Penyimpanan Permanen (Data tidak hilang walau container di-restart)
+volumes:
+  biblio_pgdata:
+    name: biblio_pgdata
+  biblio_miniodata:
+    name: biblio_miniodata
+  biblio_grafanadata:
+    name: biblio_grafanadata
+
+# Jaringan Khusus Internal Biblio
+networks:
+  biblio-network:
+    name: biblio-network
+    driver: bridge

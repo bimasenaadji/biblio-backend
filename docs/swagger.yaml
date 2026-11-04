@@ -1,0 +1,260 @@
+basePath: /
+definitions:
+  http.BookResponse:
+    properties:
+      author:
+        example: Robert C. Martin
+        type: string
+      category:
+        example: Software Engineering
+        type: string
+      cover_url:
+        example: ""
+        type: string
+      created_at:
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      isbn:
+        example: 978-0132350884
+        type: string
+      published_year:
+        example: 2008
+        type: integer
+      title:
+        example: Clean Code
+        type: string
+      updated_at:
+        type: string
+    type: object
+  http.CreateBookRequest:
+    properties:
+      author:
+        example: Robert C. Martin
+        type: string
+      category:
+        example: Software Engineering
+        type: string
+      isbn:
+        example: 978-0132350884
+        type: string
+      published_year:
+        example: 2008
+        type: integer
+      title:
+        example: Clean Code
+        type: string
+    type: object
+  http.UpdateBookRequest:
+    properties:
+      author:
+        example: Robert C. Martin
+        type: string
+      category:
+        example: Software Engineering
+        type: string
+      isbn:
+        example: 978-0132350884
+        type: string
+      published_year:
+        example: 2008
+        type: integer
+      title:
+        example: Clean Code (Revised Edition)
+        type: string
+    type: object
+  response.APIResponse:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/response.ErrorDetail'
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/response.PaginationMeta'
+      status:
+        type: string
+    type: object
+  response.ErrorDetail:
+    properties:
+      code:
+        type: string
+      details: {}
+    type: object
+  response.PaginationMeta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total_pages:
+        type: integer
+      total_rows:
+        type: integer
+    type: object
+host: localhost:3000
+info:
+  contact:
+    name: Biblio Engineering Team
+  description: Enterprise backend API for smart physical library management and book
+    tracking.
+  title: Biblio API - Smart Library Backend
+  version: "1.0"
+paths:
+  /api/v1/books:
+    get:
+      description: Retrieve all book catalog records from the database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/http.BookResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Get all books
+      tags:
+      - Books
+    post:
+      consumes:
+      - application/json
+      description: Add a new book title catalog into the database
+      parameters:
+      - description: New book payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.CreateBookRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.BookResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Create a new book
+      tags:
+      - Books
+  /api/v1/books/{id}:
+    delete:
+      description: Soft delete a book catalog record by its UUID
+      parameters:
+      - description: Book UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Delete book by ID
+      tags:
+      - Books
+    get:
+      description: Retrieve detailed book information by its UUID
+      parameters:
+      - description: Book UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.BookResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Get book by ID
+      tags:
+      - Books
+    put:
+      consumes:
+      - application/json
+      description: Update book details by its UUID
+      parameters:
+      - description: Book UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated book payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.UpdateBookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.BookResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Update book
+      tags:
+      - Books
+swagger: "2.0"

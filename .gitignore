@@ -1,0 +1,23 @@
+# Environment Variables (Keep secrets local!)
+.env
+
+# Binaries & Executables
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+
+# IDE & OS Metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
