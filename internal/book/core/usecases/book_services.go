@@ -70,3 +70,43 @@ func (s *bookService) DeleteBook(ctx context.Context, id uuid.UUID) error {
 
 	return s.repo.Delete(ctx, id)
 }
+
+// AddBookCopy validates parent book existence before creating a physical copy.
+func (s *bookService) AddBookCopy(ctx context.Context, copy *entities.BookCopy) (*entities.BookCopy, error) {
+	// Business Rule 1: Guard against orphan copies — verify parent book title exists in database
+	if _, err := s.repo.FindByID(ctx, copy.BookID); err != nil {
+		return nil, err
+	}
+
+	// Business Rule 2: Set sensible defaults if optional fields are omitted
+	if copy.Status == "" {
+		copy.Status = entities.StatusAvailable
+	}
+	if copy.Condition == "" {
+		copy.Condition = entities.ConditionGood
+	}
+
+	// Business Rule 3: Delegate persistence to the repository layer
+	if err := s.repo.CreateCopy(ctx, copy); err != nil {
+		return nil, err
+	}
+
+	return copy, nil
+}
+
+// GetCopiesByBookID verifies parent book existence before retrieving all its physical copies.
+func (s *bookService) GetCopiesByBookID(ctx context.Context, bookID uuid.UUID) ([]entities.BookCopy, error) {
+	// Business Rule 1: Ensure the requested book title actually exists (returns 404 if not found)
+	if _, err := s.repo.FindByID(ctx, bookID); err != nil {
+		return nil, err
+	}
+
+	// Business Rule 2: Fetch all copies belonging to the validated book title
+	return s.repo.FindCopiesByBookID(ctx, bookID)
+}
+
+// GetCopyByBarcode retrieves a physical copy by its unique barcode sticker.
+func (s *bookService) GetCopyByBarcode(ctx context.Context, barcode string) (*entities.BookCopy, error) {
+	// Direct lookup by barcode (repository handles eager loading of parent book details)
+	return s.repo.FindCopyByBarcode(ctx, barcode)
+}

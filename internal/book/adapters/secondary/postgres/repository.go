@@ -55,3 +55,41 @@ func (r *bookRepository) Update(ctx context.Context, book *entities.Book) error 
 func (r *bookRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.db.WithContext(ctx).Delete(&entities.Book{}, "id = ?", id).Error
 }
+
+// CreateCopy inserts a new physical book copy record into the database.
+func (r *bookRepository) CreateCopy(ctx context.Context, copy *entities.BookCopy) error {
+
+	// Directly persist the physical copy; BeforeCreate hook populates copy.ID
+	return r.db.WithContext(ctx).Create(copy).Error
+}
+
+// FindCopiesByBookID retrieves all physical copies belonging to a specific book title.
+func (r *bookRepository) FindCopiesByBookID(ctx context.Context, bookID uuid.UUID) ([]entities.BookCopy, error) {
+	var copies []entities.BookCopy
+
+	// Filter copies by foreign key book_id and sort chronologically
+	err := r.db.WithContext(ctx).Where("book_id = ?", bookID).Order("created_at ASC").Find(&copies).Error
+	if err != nil {
+		return nil, err
+	}
+	return copies, nil
+}
+
+// FindCopyByBarcode retrieves a single book copy using its unique barcode sticker.
+func (r *bookRepository) FindCopyByBarcode(ctx context.Context, barcode string) (*entities.BookCopy, error) {
+	var copy entities.BookCopy
+
+	// Preload("Book") eagerly joins the parent Book title record (Title, Author, ISBN)
+	err := r.db.WithContext(ctx).Preload("Book").First(&copy, "barcode = ?", barcode).Error
+	if err != nil {
+		return nil, err
+	}
+	return &copy, nil
+}
+
+// UpdateCopyStatus updates only the circulation status of a book copy (e.g. available -> borrowed).
+func (r *bookRepository) UpdateCopyStatus(ctx context.Context, id uuid.UUID, status entities.CopyStatus) error {
+
+	// Execute a targeted UPDATE statement for the single status column without overwriting other fields
+	return r.db.WithContext(ctx).Model(&entities.BookCopy{}).Where("id = ?", id).Update("status", status).Error
+}

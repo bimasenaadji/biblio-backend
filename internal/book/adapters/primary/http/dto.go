@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// 1. Book Title Request DTOs
 // CreateBookRequest defines the incoming payload for creating a new book (POST /api/v1/books).
 type CreateBookRequest struct {
 	ISBN          string `json:"isbn" example:"978-0132350884"`
@@ -35,4 +36,27 @@ type BookResponse struct {
 	CoverURL      string    `json:"cover_url" example:""`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// 2. Physical Book Copy Request & Response DTOs
+// CreateBookCopyRequest defines the incoming payload for adding a new physical copy to a book title.
+// Note: ID, Status, and Timestamps are intentionally excluded to prevent mass assignment vulnerabilities.
+type CreateBookCopyRequest struct {
+	Barcode   string `json:"barcode" example:"BC-CLN-001"`
+	RackCode  string `json:"rack_code" example:"RACK-A1"`
+	Condition string `json:"condition" example:"good"`
+}
+
+// BookCopyResponse defines the outbound JSON payload for physical book copies.
+// It optionally embeds parent Book details when eager loaded by the scanner endpoint.
+type BookCopyResponse struct {
+	ID        uuid.UUID     `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	BookID    uuid.UUID     `json:"book_id" example:"771e8400-e29b-41d4-a716-446655440001"`
+	Barcode   string        `json:"barcode" example:"BC-CLN-001"`
+	RackCode  string        `json:"rack_code" example:"RACK-A1"`
+	Condition string        `json:"condition" example:"good"`
+	Status    string        `json:"status" example:"available"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
+	Book      *BookResponse `json:"book,omitempty"`
 }

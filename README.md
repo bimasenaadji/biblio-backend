@@ -132,6 +132,9 @@ Once the application is running, visit the interactive Swagger UI:
 | `GET` | `/api/v1/books/:id` | Retrieve single book title by UUID |
 | `PUT` | `/api/v1/books/:id` | Update an existing book title by UUID |
 | `DELETE` | `/api/v1/books/:id` | Soft-delete a book record by UUID |
+| `POST` | `/api/v1/books/:id/copies` | Register a new physical copy with barcode |
+| `GET` | `/api/v1/books/:id/copies` | Retrieve all physical copies of a book |
+| `GET` | `/api/v1/copies/barcode/:barcode` | Lookup book copy and parent book by barcode scan |
 
 ---
 
@@ -183,3 +186,4 @@ Trigger it anytime during local development by pressing `Ctrl + C` in the server
 ## 📜 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+

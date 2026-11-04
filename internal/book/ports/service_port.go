@@ -14,4 +14,9 @@ type BookService interface {
 	GetBookByID(ctx context.Context, id uuid.UUID) (*entities.Book, error)
 	UpdateBook(ctx context.Context, id uuid.UUID, input *entities.Book) (*entities.Book, error)
 	DeleteBook(ctx context.Context, id uuid.UUID) error
+
+	// Book Copy Use Case
+	AddBookCopy(ctx context.Context, copy *entities.BookCopy) (*entities.BookCopy, error)
+	GetCopiesByBookID(ctx context.Context, bookID uuid.UUID) ([]entities.BookCopy, error)
+	GetCopyByBarcode(ctx context.Context, barcode string) (*entities.BookCopy, error)
 }

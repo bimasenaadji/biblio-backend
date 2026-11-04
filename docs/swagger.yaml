@@ -1,5 +1,32 @@
 basePath: /
 definitions:
+  http.BookCopyResponse:
+    properties:
+      barcode:
+        example: BC-CLN-001
+        type: string
+      book:
+        $ref: '#/definitions/http.BookResponse'
+      book_id:
+        example: 771e8400-e29b-41d4-a716-446655440001
+        type: string
+      condition:
+        example: good
+        type: string
+      created_at:
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      rack_code:
+        example: RACK-A1
+        type: string
+      status:
+        example: available
+        type: string
+      updated_at:
+        type: string
+    type: object
   http.BookResponse:
     properties:
       author:
@@ -26,6 +53,18 @@ definitions:
         example: Clean Code
         type: string
       updated_at:
+        type: string
+    type: object
+  http.CreateBookCopyRequest:
+    properties:
+      barcode:
+        example: BC-CLN-001
+        type: string
+      condition:
+        example: good
+        type: string
+      rack_code:
+        example: RACK-A1
         type: string
     type: object
   http.CreateBookRequest:
@@ -257,4 +296,124 @@ paths:
       summary: Update book
       tags:
       - Books
+  /api/v1/books/{id}/copies:
+    get:
+      description: Retrieve all physical item copies registered under a specific book
+        title
+      parameters:
+      - description: Book UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/http.BookCopyResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Get all physical copies of a book
+      tags:
+      - Book Copies
+    post:
+      consumes:
+      - application/json
+      description: Register a new physical book copy with a unique barcode and rack
+        location
+      parameters:
+      - description: Book UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Physical copy payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.CreateBookCopyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.BookCopyResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Add physical copy to a book
+      tags:
+      - Book Copies
+  /api/v1/copies/barcode/{barcode}:
+    get:
+      description: Lookup physical book copy and its parent book details by scanning
+        unique barcode
+      parameters:
+      - description: Unique Barcode (e.g. BC-CLN-001)
+        in: path
+        name: barcode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.BookCopyResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Get book copy by barcode (Scan)
+      tags:
+      - Book Copies
 swagger: "2.0"

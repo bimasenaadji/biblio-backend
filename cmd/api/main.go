@@ -44,7 +44,7 @@ func main() {
 
 	// 3. Execute Automatic Database Schema Migrations
 	log.Println("Running automatic database migrations...")
-	if err := db.AutoMigrate(&entities.Book{}); err != nil {
+	if err := db.AutoMigrate(&entities.Book{}, &entities.BookCopy{}); err != nil {
 		log.Fatalf("Failed to execute database migration: %v", err)
 	}
 

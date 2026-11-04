@@ -262,9 +262,237 @@
                     }
                 }
             }
+        },
+        "/api/v1/books/{id}/copies": {
+            "get": {
+                "description": "Retrieve all physical item copies registered under a specific book title",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Book Copies"
+                ],
+                "summary": "Get all physical copies of a book",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Book UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/http.BookCopyResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Register a new physical book copy with a unique barcode and rack location",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Book Copies"
+                ],
+                "summary": "Add physical copy to a book",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Book UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Physical copy payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.CreateBookCopyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.BookCopyResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/copies/barcode/{barcode}": {
+            "get": {
+                "description": "Lookup physical book copy and its parent book details by scanning unique barcode",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Book Copies"
+                ],
+                "summary": "Get book copy by barcode (Scan)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique Barcode (e.g. BC-CLN-001)",
+                        "name": "barcode",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.BookCopyResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "http.BookCopyResponse": {
+            "type": "object",
+            "properties": {
+                "barcode": {
+                    "type": "string",
+                    "example": "BC-CLN-001"
+                },
+                "book": {
+                    "$ref": "#/definitions/http.BookResponse"
+                },
+                "book_id": {
+                    "type": "string",
+                    "example": "771e8400-e29b-41d4-a716-446655440001"
+                },
+                "condition": {
+                    "type": "string",
+                    "example": "good"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "rack_code": {
+                    "type": "string",
+                    "example": "RACK-A1"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "available"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "http.BookResponse": {
             "type": "object",
             "properties": {
@@ -301,6 +529,23 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "http.CreateBookCopyRequest": {
+            "type": "object",
+            "properties": {
+                "barcode": {
+                    "type": "string",
+                    "example": "BC-CLN-001"
+                },
+                "condition": {
+                    "type": "string",
+                    "example": "good"
+                },
+                "rack_code": {
+                    "type": "string",
+                    "example": "RACK-A1"
                 }
             }
         },

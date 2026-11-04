@@ -18,6 +18,7 @@ type Book struct {
 	CoverURL      string         `gorm:"type:text" json:"cover_url"`
 	CreatedBy     *uuid.UUID     `gorm:"type:uuid" json:"created_by"`
 	UpdatedBy     *uuid.UUID     `gorm:"type:uuid" json:"updated_by"`
+	Copies        []BookCopy     `gorm:"foreignKey:BookID" json:"copies,omitempty"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`

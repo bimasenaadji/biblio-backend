@@ -102,3 +102,75 @@ func (a *BookAPI) UpdateBook(ctx context.Context, id uuid.UUID, req UpdateBookRe
 func (a *BookAPI) DeleteBook(ctx context.Context, id uuid.UUID) error {
 	return a.service.DeleteBook(ctx, id)
 }
+
+// toBookCopyResponse converts a BookCopy entity into an outbound BookCopyResponse DTO.
+func toBookCopyResponse(copy *entities.BookCopy) *BookCopyResponse {
+	// Step 1: Map copy fields from domain entity to DTO representation
+	resp := &BookCopyResponse{
+		ID:        copy.ID,
+		BookID:    copy.BookID,
+		Barcode:   copy.Barcode,
+		RackCode:  copy.RackCode,
+		Condition: string(copy.Condition),
+		Status:    string(copy.Status),
+		CreatedAt: copy.CreatedAt,
+		UpdatedAt: copy.UpdatedAt,
+	}
+
+	// Step 2: If parent book was eagerly joined (e.g. from barcode scan), map and attach it
+	if copy.Book != nil {
+		resp.Book = toBookResponse(copy.Book)
+	}
+
+	return resp
+}
+
+// AddBookCopy maps copy request to entity and delegates to the usecase service.
+func (a *BookAPI) AddBookCopy(ctx context.Context, bookID uuid.UUID, req CreateBookCopyRequest) (*BookCopyResponse, error) {
+	// Step 1: Construct domain entity from incoming request DTO and route parameter bookID
+	copyEntity := &entities.BookCopy{
+		BookID:    bookID,
+		Barcode:   req.Barcode,
+		RackCode:  req.RackCode,
+		Condition: entities.Condition(req.Condition),
+	}
+
+	// Step 2: Invoke the business service (handles parent validation and persistence)
+	created, err := a.service.AddBookCopy(ctx, copyEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 3: Transform persisted domain entity into outbound response DTO
+	return toBookCopyResponse(created), nil
+}
+
+// GetCopiesByBookID fetches all physical copies of a book title and transforms them into DTOs.
+func (a *BookAPI) GetCopiesByBookID(ctx context.Context, bookID uuid.UUID) ([]BookCopyResponse, error) {
+	// Step 1: Query copies through the business usecase service
+	copies, err := a.service.GetCopiesByBookID(ctx, bookID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Pre-allocate slice with exact capacity to avoid re-allocations and prevent null JSON
+	responses := make([]BookCopyResponse, 0, len(copies))
+	for _, c := range copies {
+		copyItem := c
+		responses = append(responses, *toBookCopyResponse(&copyItem))
+	}
+
+	return responses, nil
+}
+
+// GetCopyByBarcode fetches a single physical copy by barcode and maps to response DTO.
+func (a *BookAPI) GetCopyByBarcode(ctx context.Context, barcode string) (*BookCopyResponse, error) {
+	// Step 1: Lookup copy by barcode via service layer
+	copy, err := a.service.GetCopyByBarcode(ctx, barcode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 2: Transform entity (with its preloaded book title) into outbound DTO
+	return toBookCopyResponse(copy), nil
+}
