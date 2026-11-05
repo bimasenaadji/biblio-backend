@@ -452,6 +452,188 @@
                     }
                 }
             }
+        },
+        "/api/v1/loans": {
+            "post": {
+                "description": "Create a new loan transaction by scanning up to 5 physical book copy barcodes",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loans"
+                ],
+                "summary": "Borrow books",
+                "parameters": [
+                    {
+                        "description": "Borrow books payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.BorrowBookRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.LoanResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/loans/number/{loanNumber}": {
+            "get": {
+                "description": "Retrieve full loan transaction receipt by reference number (e.g. LN-YYYYMMDD-XXXX)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loans"
+                ],
+                "summary": "Get loan by loan number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Loan Reference Number",
+                        "name": "loanNumber",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.LoanResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/loans/{id}": {
+            "get": {
+                "description": "Retrieve full loan transaction receipt and its borrowed items by UUID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loans"
+                ],
+                "summary": "Get loan by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Loan UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.LoanResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -490,6 +672,27 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "http.BookCopySummary": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string",
+                    "example": "Robert C. Martin"
+                },
+                "barcode": {
+                    "type": "string",
+                    "example": "BC-CLN-001"
+                },
+                "book_title": {
+                    "type": "string",
+                    "example": "Clean Code"
+                },
+                "rack_code": {
+                    "type": "string",
+                    "example": "RACK-A1"
                 }
             }
         },
@@ -532,6 +735,43 @@
                 }
             }
         },
+        "http.BorrowBookRequest": {
+            "type": "object",
+            "required": [
+                "barcodes",
+                "member_name"
+            ],
+            "properties": {
+                "barcodes": {
+                    "type": "array",
+                    "maxItems": 5,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"BC-CLN-001\"",
+                        "\"BC-CLN-002\"]"
+                    ]
+                },
+                "duration_days": {
+                    "type": "integer",
+                    "example": 7
+                },
+                "member_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "member_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "metadata": {
+                    "description": "PostgreSQL JSONB dynamic attributes",
+                    "type": "object"
+                }
+            }
+        },
         "http.CreateBookCopyRequest": {
             "type": "object",
             "properties": {
@@ -571,6 +811,90 @@
                 "title": {
                     "type": "string",
                     "example": "Clean Code"
+                }
+            }
+        },
+        "http.LoanItemResponse": {
+            "type": "object",
+            "properties": {
+                "book_copy": {
+                    "$ref": "#/definitions/http.BookCopySummary"
+                },
+                "book_copy_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                },
+                "condition_on_borrow": {
+                    "type": "string",
+                    "example": "good"
+                },
+                "condition_on_return": {
+                    "type": "string",
+                    "example": "good"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "loan_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "returned_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.LoanResponse": {
+            "type": "object",
+            "properties": {
+                "borrowed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.LoanItemResponse"
+                    }
+                },
+                "loan_number": {
+                    "type": "string",
+                    "example": "LN-20261105-0001"
+                },
+                "member_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "member_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "returned_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "borrowed"
+                },
+                "total_items": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },

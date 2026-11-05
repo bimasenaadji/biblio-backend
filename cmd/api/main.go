@@ -2,12 +2,16 @@ package main
 
 import (
 	_ "biblio/docs"
-	"biblio/internal/book/adapters/primary/http"
-	"biblio/internal/book/adapters/secondary/postgres"
-	"biblio/internal/book/core/entities"
-	"biblio/internal/book/core/usecases"
+	bookHttp "biblio/internal/book/adapters/primary/http"
+	bookPostgres "biblio/internal/book/adapters/secondary/postgres"
+	bookEntities "biblio/internal/book/core/entities"
+	bookUsecases "biblio/internal/book/core/usecases"
 	"biblio/internal/infrastructure"
 	"biblio/internal/infrastructure/config"
+	loanHttp "biblio/internal/loan/adapters/primary/http"
+	loanPostgres "biblio/internal/loan/adapters/secondary/postgres"
+	loanEntities "biblio/internal/loan/core/entities"
+	loanUsecases "biblio/internal/loan/core/usecases"
 	"context"
 	"fmt"
 	"log"
@@ -44,15 +48,27 @@ func main() {
 
 	// 3. Execute Automatic Database Schema Migrations
 	log.Println("Running automatic database migrations...")
-	if err := db.AutoMigrate(&entities.Book{}, &entities.BookCopy{}); err != nil {
+	if err := db.AutoMigrate(
+		&bookEntities.Book{},
+		&bookEntities.BookCopy{},
+		&loanEntities.Loan{},
+		&loanEntities.LoanItem{},
+	); err != nil {
 		log.Fatalf("Failed to execute database migration: %v", err)
 	}
 
 	// 4. Manual Dependency Injection (Wiring 4-Layer Hexagonal Architecture)
-	bookRepo := postgres.NewBookRepository(db)
-	bookService := usecases.NewBookService(bookRepo)
-	bookAPI := http.NewBookAPI(bookService)
-	bookHandler := http.NewBookHandler(bookAPI)
+	// --- Book Module ---
+	bookRepo := bookPostgres.NewBookRepository(db)
+	bookService := bookUsecases.NewBookService(bookRepo)
+	bookAPI := bookHttp.NewBookAPI(bookService)
+	bookHandler := bookHttp.NewBookHandler(bookAPI)
+
+	// --- Loan Module ---
+	loanRepo := loanPostgres.NewLoanRepository(db)
+	loanService := loanUsecases.NewLoanService(loanRepo, bookRepo)
+	loanAPI := loanHttp.NewLoanAPI(loanService)
+	loanHandler := loanHttp.NewLoanHandler(loanAPI)
 
 	// 5. Initialize Go Fiber Application & Standard Middleware Stack
 	app := fiber.New(fiber.Config{
@@ -79,9 +95,10 @@ func main() {
 	})
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	// 7. Register Book Module Routes under /api/v1
+	// 7. Register Module Routes under /api/v1
 	apiV1 := app.Group("/api/v1")
 	bookHandler.RegisterRoutes(apiV1)
+	loanHandler.RegisterRoutes(apiV1)
 
 	// 8. Graceful Shutdown Setup
 	shutdownChan := make(chan os.Signal, 1)
@@ -108,18 +125,8 @@ func main() {
 	defer cancel()
 
 	if err := app.ShutdownWithContext(ctx); err != nil {
-		log.Printf("Failed to gracefully shut down Fiber server: %v", err)
+		log.Printf("Error shutting down Fiber server: %v", err)
 	}
 
-	// Gracefully close PostgreSQL connection pool
-	sqlDB, err := db.DB()
-	if err == nil {
-		if err := sqlDB.Close(); err != nil {
-			log.Printf("Failed to close database connection pool: %v", err)
-		} else {
-			log.Println("🔌 PostgreSQL connection pool closed successfully.")
-		}
-	}
-
-	log.Println("✅ Biblio Server gracefully terminated. Goodbye!")
+	log.Println("🛑 Server cleanly shut down. Goodbye!")
 }
