@@ -17,6 +17,18 @@ type BorrowRequestInput struct {
 	Metadata     []byte
 }
 
+// ReturnItemInput captures the physical condition of each returned book copy.
+type ReturnItemInput struct {
+	Barcode           string
+	ConditionOnReturn string
+}
+
+// ReturnRequestInput encapsulates payload for returning books for a loan transaction.
+type ReturnRequestInput struct {
+	LoanID uuid.UUID
+	Items  []ReturnItemInput
+}
+
 // LoanService defines the inbound primary API port exposing loan business usecases.
 type LoanService interface {
 	// BorrowBooks executes the end-to-end checkout workflow including barcode verification and atomic persistence.
@@ -27,4 +39,7 @@ type LoanService interface {
 
 	// GetLoanByNumber retrieves loan details by external reference number.
 	GetLoanByNumber(ctx context.Context, loanNumber string) (*entities.Loan, error)
+
+	// ReturnBooks coordinates the book return workflow, physical condition audit, and inventory status updates.
+	ReturnBooks(ctx context.Context, input ReturnRequestInput) (*entities.Loan, error)
 }

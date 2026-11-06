@@ -89,3 +89,43 @@ func (r *loanRepository) FindByLoanNumber(ctx context.Context, loanNumber string
 	}
 	return &loan, nil
 }
+
+// ReturnLoanTransaction atomically updates the loan header, item return dates/conditions,
+// and adjusts each physical book copy's availability status.
+func (r *loanRepository) ReturnLoanTransaction(ctx context.Context, loan *entities.Loan, copyUpdates []ports.ReturnCopyUpdate) error {
+	// Execute within an atomic transaction closure
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Step 1: Update parent Loan header (Status, ReturnedAt, UpdatedAt)
+		// We use Select to explicitly touch only the lifecycle audit columns
+		err := tx.Model(loan).
+			Select("Status", "ReturnedAt", "UpdatedAt").
+			Updates(loan).Error
+		if err != nil {
+			return fmt.Errorf("failed to update loan header: %w", err)
+		}
+
+		// Step 2: Update each child LoanItem's audit trail (ConditionOnReturn, ReturnedAt)
+		for _, item := range loan.Items {
+			err := tx.Model(&entities.LoanItem{}).
+				Where("id = ?", item.ID).
+				Select("ConditionOnReturn", "ReturnedAt", "UpdatedAt").
+				Updates(item).Error
+			if err != nil {
+				return fmt.Errorf("failed to update loan item '%s': %w", item.ID, err)
+			}
+		}
+
+		// Step 3: Reconcile physical inventory status for each affected BookCopy
+		// (e.g., 'available' if returned good, 'maintenance' if damaged, 'lost' if missing)
+		for _, update := range copyUpdates {
+			err := tx.Model(&bookEntities.BookCopy{}).
+				Where("id = ?", update.CopyID).Update("status", update.Status).Error
+			if err != nil {
+				return fmt.Errorf("failed to update book copy status for '%s': %w", update.CopyID, err)
+			}
+		}
+
+		// Returning nil automatically triggers COMMIT in PostgreSQL
+		return nil
+	})
+}
