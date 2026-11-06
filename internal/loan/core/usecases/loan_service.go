@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	bookEntities "biblio/internal/book/core/entities"
 	bookPorts "biblio/internal/book/ports"
 	"biblio/internal/loan/core/entities"
 	"biblio/internal/loan/ports"
@@ -98,4 +99,114 @@ func (s *loanService) GetLoanByID(ctx context.Context, id uuid.UUID) (*entities.
 // GetLoanByNumber retrieves single loan transaction details by reference number.
 func (s *loanService) GetLoanByNumber(ctx context.Context, loanNumber string) (*entities.Loan, error) {
 	return s.loanRepo.FindByLoanNumber(ctx, loanNumber)
+}
+
+// ReturnBooks coordinates the book return workflow, physical condition audit, and inventory status updates.
+func (s *loanService) ReturnBooks(ctx context.Context, input ports.ReturnRequestInput) (*entities.Loan, error) {
+	// Business Rule 1: Validate request input integrity
+	if input.LoanID == uuid.Nil {
+		return nil, errors.New("loan ID must be provided")
+	}
+	if len(input.Items) == 0 {
+		return nil, errors.New("at least one return item must be provided")
+	}
+
+	// Business Rule 2: Fetch current active loan state with preloaded items and book copies
+	loan, err := s.loanRepo.FindByID(ctx, input.LoanID)
+	if err != nil {
+		return nil, fmt.Errorf("loan transaction not found: %w", err)
+	}
+
+	// Business Rule 3: Guard against duplicate returns on already completed loans
+	if loan.Status == entities.LoanStatusReturned {
+		return nil, errors.New("loan transaction has already been completed and all books returned")
+	}
+
+	// Index input return items by barcode for fast lookup
+	returnMap := make(map[string]ports.ReturnItemInput)
+	for _, item := range input.Items {
+		returnMap[item.Barcode] = item
+	}
+
+	now := time.Now()
+	copyUpdates := make([]ports.ReturnCopyUpdate, 0, len(input.Items))
+
+	// Business Rule 4 & 5: Match returned barcodes, audit condition, and determine new inventory status
+	for i := range loan.Items {
+		item := &loan.Items[i]
+		if item.BookCopy == nil {
+			continue
+		}
+
+		barcode := item.BookCopy.Barcode
+		returnInput, found := returnMap[barcode]
+		if !found {
+			continue // Item not part of this specific return batch
+		}
+
+		// Prevent returning an item that was already returned previously
+		if item.ReturnedAt != nil {
+			return nil, fmt.Errorf("book copy with barcode '%s' has already been returned", barcode)
+		}
+
+		// Normalize condition; default to good if omitted
+		cond := bookEntities.Condition(returnInput.ConditionOnReturn)
+		if cond == "" {
+			cond = bookEntities.ConditionGood
+		}
+
+		// Update loan item audit fields
+		item.ConditionOnReturn = &cond
+		item.ReturnedAt = &now
+
+		// Map physical condition to inventory availability status
+		var newStatus bookEntities.CopyStatus
+		switch cond {
+		case bookEntities.ConditionLost:
+			newStatus = bookEntities.StatusLost
+		case bookEntities.ConditionDamaged:
+			newStatus = bookEntities.StatusMaintenance
+		default:
+			newStatus = bookEntities.StatusAvailable
+		}
+
+		copyUpdates = append(copyUpdates, ports.ReturnCopyUpdate{
+			CopyID: item.BookCopyID,
+			Status: newStatus,
+		})
+
+		// Remove from map to track unrecognized barcodes
+		delete(returnMap, barcode)
+	}
+
+	// If there are still entries in returnMap, client sent barcodes that do not belong to this loan
+	if len(returnMap) > 0 {
+		var unknownBarcodes []string
+		for b := range returnMap {
+			unknownBarcodes = append(unknownBarcodes, b)
+		}
+		return nil, fmt.Errorf("barcodes %v do not belong to loan transaction '%s'", unknownBarcodes, loan.LoanNumber)
+	}
+
+	// Business Rule 6: Check if all items in this loan are now returned
+	allReturned := true
+	for _, item := range loan.Items {
+		if item.ReturnedAt == nil {
+			allReturned = false
+			break
+		}
+	}
+
+	if allReturned {
+		loan.Status = entities.LoanStatusReturned
+		loan.ReturnedAt = &now
+	}
+
+	// Business Rule 7: Execute atomic database transaction
+	if err := s.loanRepo.ReturnLoanTransaction(ctx, loan, copyUpdates); err != nil {
+		return nil, fmt.Errorf("failed to process return transaction: %w", err)
+	}
+
+	// Return fresh preloaded loan record
+	return s.loanRepo.FindByID(ctx, loan.ID)
 }
