@@ -640,6 +640,77 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/loans/{id}/return": {
+            "post": {
+                "description": "Process book returns for an active loan by specifying returned barcodes and physical condition",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loans"
+                ],
+                "summary": "Return borrowed books",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Loan UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Return books payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.ReturnBooksRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.LoanResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.APIResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -901,6 +972,38 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "http.ReturnBooksRequest": {
+            "type": "object",
+            "required": [
+                "items"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/http.ReturnItemRequest"
+                    }
+                }
+            }
+        },
+        "http.ReturnItemRequest": {
+            "type": "object",
+            "required": [
+                "barcode"
+            ],
+            "properties": {
+                "barcode": {
+                    "type": "string",
+                    "example": "BC-CLN-001"
+                },
+                "condition_on_return": {
+                    "description": "\"good\", \"damaged\", \"lost\"",
+                    "type": "string",
+                    "example": "good"
                 }
             }
         },

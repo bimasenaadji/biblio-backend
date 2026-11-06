@@ -186,6 +186,28 @@ definitions:
       updated_at:
         type: string
     type: object
+  http.ReturnBooksRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/http.ReturnItemRequest'
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
+  http.ReturnItemRequest:
+    properties:
+      barcode:
+        example: BC-CLN-001
+        type: string
+      condition_on_return:
+        description: '"good", "damaged", "lost"'
+        example: good
+        type: string
+    required:
+    - barcode
+    type: object
   http.UpdateBookRequest:
     properties:
       author:
@@ -590,6 +612,51 @@ paths:
           schema:
             $ref: '#/definitions/response.APIResponse'
       summary: Get loan by ID
+      tags:
+      - Loans
+  /api/v1/loans/{id}/return:
+    post:
+      consumes:
+      - application/json
+      description: Process book returns for an active loan by specifying returned
+        barcodes and physical condition
+      parameters:
+      - description: Loan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Return books payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.ReturnBooksRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/http.LoanResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Return borrowed books
       tags:
       - Loans
   /api/v1/loans/number/{loanNumber}:

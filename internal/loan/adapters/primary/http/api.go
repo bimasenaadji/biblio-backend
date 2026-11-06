@@ -112,3 +112,26 @@ func (a *LoanAPI) GetLoanByNumber(ctx context.Context, loanNumber string) (*Loan
 
 	return toLoanResponse(loan), nil
 }
+
+// ReturnBooks handles translation from HTTP return payload to usecase and maps back to HTTP response DTO.
+func (a *LoanAPI) ReturnBooks(ctx context.Context, loanID uuid.UUID, req ReturnBooksRequest) (*LoanResponse, error) {
+	items := make([]ports.ReturnItemInput, 0, len(req.Items))
+	for _, item := range req.Items {
+		items = append(items, ports.ReturnItemInput{
+			Barcode:           item.Barcode,
+			ConditionOnReturn: item.ConditionOnReturn,
+		})
+	}
+
+	input := ports.ReturnRequestInput{
+		LoanID: loanID,
+		Items:  items,
+	}
+
+	loan, err := a.service.ReturnBooks(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	return toLoanResponse(loan), nil
+}

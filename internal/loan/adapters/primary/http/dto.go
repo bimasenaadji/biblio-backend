@@ -54,3 +54,14 @@ type LoanResponse struct {
 	CreatedAt  time.Time          `json:"created_at"`
 	UpdatedAt  time.Time          `json:"updated_at"`
 }
+
+// ReturnItemRequest represents single returned book copy payload with its audited condition.
+type ReturnItemRequest struct {
+	Barcode           string `json:"barcode" validate:"required" example:"BC-CLN-001"`
+	ConditionOnReturn string `json:"condition_on_return" example:"good"` // "good", "damaged", "lost"
+}
+
+// ReturnBooksRequest defines incoming JSON payload for returning borrowed books.
+type ReturnBooksRequest struct {
+	Items []ReturnItemRequest `json:"items" validate:"required,min=1"`
+}

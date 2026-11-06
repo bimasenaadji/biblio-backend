@@ -28,6 +28,7 @@ func (h *LoanHandler) RegisterRoutes(router fiber.Router) {
 	loans.Post("", h.BorrowBooks)
 	loans.Get("/:id", h.GetLoanByID)
 	loans.Get("/number/:loanNumber", h.GetLoanByNumber)
+	loans.Post("/:id/return", h.ReturnBooks)
 }
 
 // BorrowBooks godoc
@@ -112,4 +113,37 @@ func (h *LoanHandler) GetLoanByNumber(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, fiber.StatusOK, "Loan retrieved successfully", res)
+}
+
+// ReturnBooks godoc
+// @Summary      Return borrowed books
+// @Description  Process book returns for an active loan by specifying returned barcodes and physical condition
+// @Tags         Loans
+// @Accept       json
+// @Produce      json
+// @Param        id      path      string              true  "Loan UUID"
+// @Param        request body      ReturnBooksRequest  true  "Return books payload"
+// @Success      200     {object}  response.APIResponse{data=LoanResponse}
+// @Failure      400     {object}  response.APIResponse
+// @Failure      404     {object}  response.APIResponse
+// @Failure      500     {object}  response.APIResponse
+// @Router       /api/v1/loans/{id}/return [post]
+func (h *LoanHandler) ReturnBooks(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+	loanID, err := uuid.Parse(idParam)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "INVALID_UUID", "Invalid loan UUID format", err.Error())
+	}
+
+	var req ReturnBooksRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "INVALID_PAYLOAD", "Invalid request payload format", err.Error())
+	}
+
+	res, err := h.api.ReturnBooks(c.UserContext(), loanID, req)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "RETURN_FAILED", "Failed to process book return", err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, "Books returned successfully", res)
 }
