@@ -5,9 +5,11 @@ import (
 	bookPorts "biblio/internal/book/ports"
 	"biblio/internal/loan/core/entities"
 	"biblio/internal/loan/ports"
+	"biblio/internal/utils/response"
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -209,4 +211,39 @@ func (s *loanService) ReturnBooks(ctx context.Context, input ports.ReturnRequest
 
 	// Return fresh preloaded loan record
 	return s.loanRepo.FindByID(ctx, loan.ID)
+}
+
+// GetLoanList orchestrates retrieval of filtered loan records bundled with pagination metadata.
+func (s *loanService) GetLoanList(ctx context.Context, filter ports.LoanFilter) ([]entities.Loan, response.PaginationMeta, error) {
+	// Business Rule 1: Sanitize and enforce safe pagination boundaries
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.Limit <= 0 {
+		filter.Limit = 10 // Standard default per page
+	}
+	if filter.Limit > 100 {
+		filter.Limit = 100 // Defensive guardrail against memory exhaustion
+	}
+
+	// Business Rule 2: Fetch matched loan records and total count from database
+	loans, totalRows, err := s.loanRepo.FindAll(ctx, filter)
+	if err != nil {
+		return nil, response.PaginationMeta{}, err
+	}
+
+	// Business Rule 3: Compute total pages using ceiling division
+	var totalPages int
+	if totalRows > 0 {
+		totalPages = int(math.Ceil(float64(totalRows) / float64(filter.Limit)))
+	}
+
+	meta := response.PaginationMeta{
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalRows:  totalRows,
+		TotalPages: totalPages,
+	}
+
+	return loans, meta, nil
 }
