@@ -1,6 +1,7 @@
 package http
 
 import (
+	"biblio/internal/loan/ports"
 	"biblio/internal/utils/response"
 	"errors"
 
@@ -26,6 +27,7 @@ func (h *LoanHandler) RegisterRoutes(router fiber.Router) {
 	loans := router.Group("/loans")
 
 	loans.Post("", h.BorrowBooks)
+	loans.Get("", h.GetLoanList)
 	loans.Get("/:id", h.GetLoanByID)
 	loans.Get("/number/:loanNumber", h.GetLoanByNumber)
 	loans.Post("/:id/return", h.ReturnBooks)
@@ -146,4 +148,35 @@ func (h *LoanHandler) ReturnBooks(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, fiber.StatusOK, "Books returned successfully", res)
+}
+
+// GetLoanList godoc
+// @Summary      Get loan list
+// @Description  Retrieve paginated and filtered list of loan transactions for admin monitoring
+// @Tags         Loans
+// @Accept       json
+// @Produce      json
+// @Param        page    query     int     false  "Page number (default 1)"      default(1)
+// @Param        limit   query     int     false  "Items per page (default 10)"   default(10)
+// @Param        status  query     string  false  "Filter by status: borrowed, returned, overdue"
+// @Param        search  query     string  false  "Search by member name or loan number"
+// @Success      200     {object}  response.APIResponse{data=[]LoanResponse,meta=response.PaginationMeta}
+// @Failure      500     {object}  response.APIResponse
+// @Router       /api/v1/loans [get]
+func (h *LoanHandler) GetLoanList(c *fiber.Ctx) error {
+	// Parse query parameters with safe defaults
+	filter := ports.LoanFilter{
+		Page:   c.QueryInt("page", 1),
+		Limit:  c.QueryInt("limit", 10),
+		Status: c.Query("status"),
+		Search: c.Query("search"),
+	}
+
+	res, meta, err := h.api.GetLoanList(c.UserContext(), filter)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve loan list", err.Error())
+	}
+
+	// Deliver unified paginated response envelope
+	return response.Paginated(c, "Loan list retrieved successfully", res, meta)
 }

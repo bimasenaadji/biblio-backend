@@ -3,6 +3,7 @@ package http
 import (
 	"biblio/internal/loan/core/entities"
 	"biblio/internal/loan/ports"
+	"biblio/internal/utils/response"
 	"context"
 
 	"github.com/google/uuid"
@@ -134,4 +135,20 @@ func (a *LoanAPI) ReturnBooks(ctx context.Context, loanID uuid.UUID, req ReturnB
 	}
 
 	return toLoanResponse(loan), nil
+}
+
+// GetLoanList handles translation from usecase to paginated HTTP response DTO.
+func (a *LoanAPI) GetLoanList(ctx context.Context, filter ports.LoanFilter) ([]LoanResponse, response.PaginationMeta, error) {
+	loans, meta, err := a.service.GetLoanList(ctx, filter)
+	if err != nil {
+		return nil, response.PaginationMeta{}, err
+	}
+
+	// Map slice of domain Loan entities to outbound LoanResponse DTOs
+	res := make([]LoanResponse, 0, len(loans))
+	for i := range loans {
+		res = append(res, *toLoanResponse(&loans[i]))
+	}
+
+	return res, meta, nil
 }
