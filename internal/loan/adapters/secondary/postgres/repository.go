@@ -6,6 +6,7 @@ import (
 	"biblio/internal/loan/ports"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -128,4 +129,52 @@ func (r *loanRepository) ReturnLoanTransaction(ctx context.Context, loan *entiti
 		// Returning nil automatically triggers COMMIT in PostgreSQL
 		return nil
 	})
+}
+
+// FindAll retrieves paginated and filtered loan records along with the total matched record count.
+func (r *loanRepository) FindAll(ctx context.Context, filter ports.LoanFilter) ([]entities.Loan, int64, error) {
+	var loans []entities.Loan
+	var totalRows int64
+
+	// Start building dynamic query on loans table
+	query := r.db.WithContext(ctx).Model(&entities.Loan{})
+
+	// Step 1: Dynamic Status Filtering
+	switch filter.Status {
+	case "overdue":
+		// Overdue loans are currently 'borrowed' whose due_date is in the past
+		query = query.Where("status = ? AND due_date < ?", entities.LoanStatusBorrowed, time.Now())
+	case "borrowed":
+		query = query.Where("status = ?", entities.LoanStatusBorrowed)
+	case "returned":
+		query = query.Where("status = ?", entities.LoanStatusReturned)
+	}
+
+	// Step 2: Dynamic Search Keyword (case-insensitive ILIKE for PostgreSQL)
+	if filter.Search != "" {
+		searchPattern := "%" + filter.Search + "%"
+		query = query.Where("member_name ILIKE ? OR loan_number ILIKE ?", searchPattern, searchPattern)
+	}
+
+	// Step 3: Count total matching rows BEFORE applying pagination limits
+	if err := query.Count(&totalRows).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count matching loan records: %w", err)
+	}
+
+	// Step 4: Calculate pagination OFFSET: (Page - 1) * Limit
+	offset := (filter.Page - 1) * filter.Limit
+
+	// Step 5: Execute paginated query with nested eager loading
+	err := query.
+		Limit(filter.Limit).
+		Offset(offset).
+		Order("created_at DESC").
+		Preload("Items.BookCopy.Book").
+		Find(&loans).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch paginated loan records: %w", err)
+	}
+
+	// Return data slice and total matching count
+	return loans, totalRows, nil
 }

@@ -14,6 +14,14 @@ type ReturnCopyUpdate struct {
 	Status bookEntities.CopyStatus
 }
 
+// LoanFilter encapsulates query parameters for searching, filtering, and paginating loans.
+type LoanFilter struct {
+	Page   int
+	Limit  int
+	Status string
+	Search string
+}
+
 // LoanRepository defines the outbound secondary SPI port for loan data persistence.
 // Adheres to Hexagonal Architecture: domain core depends only on this abstraction, not database drivers.
 type LoanRepository interface {
@@ -30,4 +38,7 @@ type LoanRepository interface {
 	// ReturnLoanTransaction atomically updates the loan header, item return dates/conditions,
 	// and adjusts each physical book copy's availability status.
 	ReturnLoanTransaction(ctx context.Context, loan *entities.Loan, copyUpdates []ReturnCopyUpdate) error
+
+	// FindAll retrieves paginated and filtered loan records along with the total matched record count.
+	FindAll(ctx context.Context, filter LoanFilter) ([]entities.Loan, int64, error)
 }

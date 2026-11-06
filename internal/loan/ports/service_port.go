@@ -2,6 +2,7 @@ package ports
 
 import (
 	"biblio/internal/loan/core/entities"
+	"biblio/internal/utils/response"
 	"context"
 
 	"github.com/google/uuid"
@@ -42,4 +43,7 @@ type LoanService interface {
 
 	// ReturnBooks coordinates the book return workflow, physical condition audit, and inventory status updates.
 	ReturnBooks(ctx context.Context, input ReturnRequestInput) (*entities.Loan, error)
+
+	// GetLoanList orchestrates retrieval of filtered loan records bundled with pagination metadata.
+	GetLoanList(ctx context.Context, filter LoanFilter) ([]entities.Loan, response.PaginationMeta, error)
 }
