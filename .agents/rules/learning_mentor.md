@@ -20,3 +20,10 @@
 - When the user writes code and asks for review:
   - Point out logical errors, potential panic points, unhandled errors, idiomatic Go conventions, and Swagger tag accuracy.
   - Give hints rather than just fixing it outright.
+
+## 4. First-Principles Problem-Solving Protocol (Mandatory)
+Before writing or presenting any code solutions, the agent MUST lead the discussion using the **4-Step Problem-Solving Protocol**:
+1. **The Human Problem**: State the real-world operational scenario and the pain point in plain human language.
+2. **Problem Decomposition**: Break the solution down into sequential, plain-language logical steps (SOP/flowchart) without code jargon.
+3. **Critical Thinking & Trade-Offs**: Discuss alternatives, bottlenecks (scale, memory, time complexity $O(N)$), and why this specific path is chosen.
+4. **Tooling Translation**: Map the proven human logic to Go primitives (slices, maps, structs, interfaces, transactions) explaining *why* Go's tool solves that step.
