@@ -1007,6 +1007,10 @@ const docTemplate = `{
                 "due_date": {
                     "type": "string"
                 },
+                "has_damaged_book": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -1040,6 +1044,7 @@ const docTemplate = `{
                     "example": "borrowed"
                 },
                 "total_items": {
+                    "description": "Aggregated/Calculated fields for efficient admin monitoring (avoiding N+1 queries)",
                     "type": "integer",
                     "example": 2
                 },

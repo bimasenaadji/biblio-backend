@@ -157,6 +157,9 @@ definitions:
         type: string
       due_date:
         type: string
+      has_damaged_book:
+        example: false
+        type: boolean
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -181,6 +184,8 @@ definitions:
         example: borrowed
         type: string
       total_items:
+        description: Aggregated/Calculated fields for efficient admin monitoring (avoiding
+          N+1 queries)
         example: 2
         type: integer
       updated_at:
