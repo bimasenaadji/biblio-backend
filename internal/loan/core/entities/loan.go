@@ -39,6 +39,12 @@ type Loan struct {
 
 	// Has Many Relation: 1 Loan transaction contains multiple loaned book copy items
 	Items []LoanItem `gorm:"foreignKey:LoanID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"items,omitempty"`
+
+	// Virtual / Read-Only Fields (Populated via Raw SQL CTE in repository queries)
+	// Tag 'gorm:"->"' marks these fields as read-only: GORM will scan values into them,
+	// but AutoMigrate will NOT generate physical database columns for them.
+	TotalItems     int  `gorm:"->" json:"total_items,omitempty"`
+	HasDamagedBook bool `gorm:"->" json:"has_damaged_book,omitempty"`
 }
 
 // BeforeCreate is a GORM lifecycle hook that generates a new UUID and formatted LoanNumber.

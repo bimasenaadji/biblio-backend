@@ -40,19 +40,21 @@ type BookCopySummary struct {
 // LoanResponse defines the comprehensive receipt payload delivered to the client.
 // Preloaded associations provide the client with rich metadata in a single response envelope.
 type LoanResponse struct {
-	ID         uuid.UUID          `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	LoanNumber string             `json:"loan_number" example:"LN-20261105-0001"`
-	MemberID   *uuid.UUID         `json:"member_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
-	MemberName string             `json:"member_name" example:"John Doe"`
-	Status     string             `json:"status" example:"borrowed"`
-	BorrowedAt time.Time          `json:"borrowed_at"`
-	DueDate    time.Time          `json:"due_date"`
-	ReturnedAt *time.Time         `json:"returned_at,omitempty"`
-	Metadata   json.RawMessage    `json:"metadata,omitempty" swaggertype:"object"`
-	Items      []LoanItemResponse `json:"items,omitempty"`
-	TotalItems int                `json:"total_items" example:"2"`
-	CreatedAt  time.Time          `json:"created_at"`
-	UpdatedAt  time.Time          `json:"updated_at"`
+	ID             uuid.UUID          `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	LoanNumber     string             `json:"loan_number" example:"LN-20261105-0001"`
+	MemberID       *uuid.UUID         `json:"member_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
+	MemberName     string             `json:"member_name" example:"John Doe"`
+	Status         string             `json:"status" example:"borrowed"`
+	BorrowedAt     time.Time          `json:"borrowed_at"`
+	DueDate        time.Time          `json:"due_date"`
+	ReturnedAt     *time.Time         `json:"returned_at,omitempty"`
+	Metadata       json.RawMessage    `json:"metadata,omitempty" swaggertype:"object"`
+	Items          []LoanItemResponse `json:"items,omitempty"`
+	// Aggregated/Calculated fields for efficient admin monitoring (avoiding N+1 queries)
+	TotalItems     int                `json:"total_items" example:"2"`
+	HasDamagedBook bool               `json:"has_damaged_book" example:"false"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
 // ReturnItemRequest represents single returned book copy payload with its audited condition.

@@ -59,21 +59,31 @@ func toLoanResponse(loan *entities.Loan) *LoanResponse {
 		items = append(items, itemRes)
 	}
 
-	return &LoanResponse{
-		ID:         loan.ID,
-		LoanNumber: loan.LoanNumber,
-		MemberID:   loan.MemberID,
-		MemberName: loan.MemberName,
-		Status:     string(loan.Status),
-		BorrowedAt: loan.BorrowedAt,
-		DueDate:    loan.DueDate,
-		ReturnedAt: loan.ReturnedAt,
-		Metadata:   loan.Metadata,
-		Items:      items,
-		TotalItems: len(items),
-		CreatedAt:  loan.CreatedAt,
-		UpdatedAt:  loan.UpdatedAt,
+	// Fallback calculation:
+	// - On FindAll (CTE): loan.TotalItems is pre-aggregated by PostgreSQL CTE (items slice is empty to save memory).
+	// - On FindByID / BorrowBooks: loan.Items is loaded, so we fall back to len(items) if TotalItems was not scanned.
+	totalItems := loan.TotalItems
+	if totalItems == 0 && len(items) > 0 {
+		totalItems = len(items)
 	}
+
+	return &LoanResponse{
+		ID:             loan.ID,
+		LoanNumber:     loan.LoanNumber,
+		MemberID:       loan.MemberID,
+		MemberName:     loan.MemberName,
+		Status:         string(loan.Status),
+		BorrowedAt:     loan.BorrowedAt,
+		DueDate:        loan.DueDate,
+		ReturnedAt:     loan.ReturnedAt,
+		Metadata:       loan.Metadata,
+		Items:          items,
+		TotalItems:     totalItems,
+		HasDamagedBook: loan.HasDamagedBook,
+		CreatedAt:      loan.CreatedAt,
+		UpdatedAt:      loan.UpdatedAt,
+	}
+
 }
 
 // BorrowBooks handles translation from HTTP request DTO to usecase and maps back to HTTP response DTO.

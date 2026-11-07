@@ -131,50 +131,97 @@ func (r *loanRepository) ReturnLoanTransaction(ctx context.Context, loan *entiti
 	})
 }
 
-// FindAll retrieves paginated and filtered loan records along with the total matched record count.
+// FindAll retrieves paginated and filtered loan records using a high-performance CTE query.
 func (r *loanRepository) FindAll(ctx context.Context, filter ports.LoanFilter) ([]entities.Loan, int64, error) {
 	var loans []entities.Loan
 	var totalRows int64
 
-	// Start building dynamic query on loans table
-	query := r.db.WithContext(ctx).Model(&entities.Loan{})
+	// Base CTE definition: Common Table Expressions (CTE)
+	// Solves N+1 query problem by pre-aggregating item stats in a single database round-trip.
+	// - COUNT(*): Total count of book copies borrowed in this loan.
+	// - BOOL_OR(...): Evaluates to true if AT LEAST ONE book copy was returned in 'damaged' condition.
+	// - COALESCE(..., false): Guards against NULL when items have not been returned yet (condition_on_return is NULL).
+	cteQuery := `
+		WITH item_stats AS (
+			SELECT 
+				loan_id,
+				COUNT(*) AS total_items,
+				COALESCE(BOOL_OR(condition_on_return = 'damaged'), false) AS has_damaged_book
+			FROM loan_items
+			GROUP BY loan_id
+		)
+	`
 
-	// Step 1: Dynamic Status Filtering
-	switch filter.Status {
-	case "overdue":
-		// Overdue loans are currently 'borrowed' whose due_date is in the past
-		query = query.Where("status = ? AND due_date < ?", entities.LoanStatusBorrowed, time.Now())
-	case "borrowed":
-		query = query.Where("status = ?", entities.LoanStatusBorrowed)
-	case "returned":
-		query = query.Where("status = ?", entities.LoanStatusReturned)
+	// Step 1: Count total matching records for pagination metadata
+	countSQL := "SELECT count(*) FROM loans WHERE 1=1"
+	var countArgs []interface{}
+
+	if filter.Status != "" {
+		switch filter.Status {
+		case "overdue":
+			countSQL += " AND status = ? AND due_date < ?"
+			countArgs = append(countArgs, entities.LoanStatusBorrowed, time.Now())
+		case "borrowed":
+			countSQL += " AND status = ?"
+			countArgs = append(countArgs, entities.LoanStatusBorrowed)
+		case "returned":
+			countSQL += " AND status = ?"
+			countArgs = append(countArgs, entities.LoanStatusReturned)
+		}
 	}
 
-	// Step 2: Dynamic Search Keyword (case-insensitive ILIKE for PostgreSQL)
 	if filter.Search != "" {
 		searchPattern := "%" + filter.Search + "%"
-		query = query.Where("member_name ILIKE ? OR loan_number ILIKE ?", searchPattern, searchPattern)
+		countSQL += " AND (member_name ILIKE ? OR loan_number ILIKE ?)"
+		countArgs = append(countArgs, searchPattern, searchPattern)
 	}
 
-	// Step 3: Count total matching rows BEFORE applying pagination limits
-	if err := query.Count(&totalRows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(countSQL, countArgs...).Scan(&totalRows).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count matching loan records: %w", err)
 	}
 
-	// Step 4: Calculate pagination OFFSET: (Page - 1) * Limit
-	offset := (filter.Page - 1) * filter.Limit
+	// Step 2: Assemble CTE query with dynamic filters and pagination
+	// - LEFT JOIN: Guarantees loan headers are retrieved even if they have 0 items.
+	// - COALESCE: Guarantees clean zero/false values rather than SQL NULL, preventing unmarshaling panics.
+	dataSQL := cteQuery + `
+		SELECT 
+			loans.*,
+			COALESCE(item_stats.total_items, 0) AS total_items,
+			COALESCE(item_stats.has_damaged_book, false) AS has_damaged_book
+		FROM loans
+		LEFT JOIN item_stats ON loans.id = item_stats.loan_id
+		WHERE 1=1
+	`
+	var dataArgs []interface{}
 
-	// Step 5: Execute paginated query with nested eager loading
-	err := query.
-		Limit(filter.Limit).
-		Offset(offset).
-		Order("created_at DESC").
-		Preload("Items.BookCopy.Book").
-		Find(&loans).Error
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to fetch paginated loan records: %w", err)
+	if filter.Status != "" {
+		switch filter.Status {
+		case "overdue":
+			dataSQL += " AND loans.status = ? AND loans.due_date < ?"
+			dataArgs = append(dataArgs, entities.LoanStatusBorrowed, time.Now())
+		case "borrowed":
+			dataSQL += " AND loans.status = ?"
+			dataArgs = append(dataArgs, entities.LoanStatusBorrowed)
+		case "returned":
+			dataSQL += " AND loans.status = ?"
+			dataArgs = append(dataArgs, entities.LoanStatusReturned)
+		}
 	}
 
-	// Return data slice and total matching count
+	if filter.Search != "" {
+		searchPattern := "%" + filter.Search + "%"
+		dataSQL += " AND (loans.member_name ILIKE ? OR loans.loan_number ILIKE ?)"
+		dataArgs = append(dataArgs, searchPattern, searchPattern)
+	}
+
+	// Step 3: Apply safe sorting and pagination LIMIT / OFFSET
+	offset := (filter.Page - 1) * filter.Limit
+	dataSQL += " ORDER BY loans.created_at DESC LIMIT ? OFFSET ?"
+	dataArgs = append(dataArgs, filter.Limit, offset)
+
+	if err := r.db.WithContext(ctx).Raw(dataSQL, dataArgs...).Scan(&loans).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch paginated loans via CTE: %w", err)
+	}
+
 	return loans, totalRows, nil
 }
