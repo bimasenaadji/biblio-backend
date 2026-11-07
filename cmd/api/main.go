@@ -2,6 +2,8 @@ package main
 
 import (
 	_ "biblio/docs"
+	authPostgres "biblio/internal/auth/adapters/secondary/postgres"
+	authEntities "biblio/internal/auth/core/entities"
 	bookHttp "biblio/internal/book/adapters/primary/http"
 	bookPostgres "biblio/internal/book/adapters/secondary/postgres"
 	bookEntities "biblio/internal/book/core/entities"
@@ -52,9 +54,15 @@ func main() {
 		&bookEntities.Book{},
 		&bookEntities.BookCopy{},
 		&loanEntities.Loan{},
-		&loanEntities.LoanItem{},
+		&loanEntities.LoanItem{}, &authEntities.Role{},
+		&authEntities.Permission{},
+		&authEntities.User{},
 	); err != nil {
 		log.Fatalf("Failed to execute database migration: %v", err)
+	}
+
+	if err := authPostgres.SeedRolesAndPermissions(db); err != nil {
+		log.Fatalf("Failed to execute database seeding: %v", err)
 	}
 
 	// 4. Manual Dependency Injection (Wiring 4-Layer Hexagonal Architecture)
